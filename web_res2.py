@@ -54,15 +54,20 @@ filepaths.sort()
 
 nlp = spacy.load('en')
 stop = set(stopwords.words('english'))
+start_time = time.time()
 
-for i in range(290, 320):
+## Do not loop more than 30 items at a time
+for i in range(380, 410):
 	if i % 10 == 0:
 		print ('At step .... ', i)
+
 	with open(filepaths[i]) as f:
 		urls = []
 		data = json.load(f)
 		name = data['Claim_ID']
 		query = data['Claim']
+
+		print ('At claim .... ', name)
 
 		for item in data['Google Results'][0]['results']:
 			if 'snopes' not in item['link'] and 'pdf' not in item['link']:
@@ -82,6 +87,9 @@ for i in range(290, 320):
 
 	articles = []
 	count = 0
+	checkpoint = time.time()
+	timeout = 5
+
 	for url in urls:
 		try:
 			## Extracting the articles using goose and extracting the text body and checking overlap with the claim
@@ -101,8 +109,17 @@ for i in range(290, 320):
 				f.close()
 
 				count += 1
+				checkpoint = time.time()
+
+			## Check for timeout
+			if time.time() > checkpoint + timeout:
+				print ('Timed-out ....', name)
+				break
 
 		except:
 			continue
 
-	print ("out")
+	print ()
+
+print ('Total time = ', ((time.time() - start_time) / 60), 'mins')
+	
