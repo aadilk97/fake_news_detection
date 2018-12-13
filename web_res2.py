@@ -1,16 +1,10 @@
-import requests
-import spacy
 import nltk
 import os
 import json
 import time
-import eventlet
-import urllib
 
 from os.path import join, isfile
 from goose3 import Goose, Configuration
-from googlesearch import search
-from nltk.corpus import stopwords
 from nltk import word_tokenize
 
 
@@ -44,20 +38,16 @@ def compute_overlap(claim, article):
 
 path = '/Users/aadil/fake_news_detection/Snopes'
 dump_path = '/Users/aadil/fake_news_detection/data2'
-dump_path2 = '/Users/aadil/fake_news_detection/'
 
 
 
 filepaths = [join(path, f) for f in os.listdir(path) if isfile(join(path, f))]
 filepaths.sort()
 
-
-nlp = spacy.load('en')
-stop = set(stopwords.words('english'))
 start_time = time.time()
 
 ## Do not loop more than 30 items at a time
-for i in range(380, 410):
+for i in range(630, 632):
 	if i % 10 == 0:
 		print ('At step .... ', i)
 
@@ -111,8 +101,8 @@ for i in range(380, 410):
 				count += 1
 				checkpoint = time.time()
 
-			## Check for timeout
-			if time.time() > checkpoint + timeout:
+			# Check for timeout
+			if time.time() > checkpoint + timeout and cred == '0\n':
 				print ('Timed-out ....', name)
 				break
 
