@@ -1,10 +1,8 @@
 import os
-import nltk
+import pickle
 import numpy as np
 
-from nltk import word_tokenize
 from os.path import join, isfile
-from collections import Counter
 
 
 path = '/Users/aadil/fake_news_detection/data2'
@@ -20,7 +18,7 @@ lexicons = [[]]
 
 ## Generating a wordlist for each stylistic feature and storing in a 2-D list.
 for i in range(len(lexpaths)):
-	with open(lexpaths[i], 'r') as f:
+	with open(lexpaths[i], 'r', encoding='latin-1') as f:
 		word_list = []
 		for word in f:
 			word_list.append(word.rstrip())
@@ -31,15 +29,16 @@ for i in range(len(lexpaths)):
 ## Vecotorzing the data using the 2-D list by counting frequency of each feature type.
 X = [[]]
 y = []
-## Ranges to length-1 as the last doc is the test doc(000_test.txt)
-for i in range(0, (len(filepaths)-1)):
+## Ranges to length-1 as the last doc is the test doc(000_test.txt).
+for i in range(0, len(filepaths)-1):
+	if i % 50 == 0:
+		print ('At step ...', i)
+
 	with open(filepaths[i], 'r') as f:
 		text = f.read()
 		text = text.replace("\"", "")
 		text = text.strip()
 		tokens = text.split()
-
-		c_tokens = Counter(tokens)
 
 		## An empty vector vec for each doc. Updating the vector with frequency of each feature type and then normalizing it.
 		vec = []
@@ -57,5 +56,13 @@ for i in range(0, (len(filepaths)-1)):
 X = np.array(X[0: len(y)])
 y = np.array(y, dtype=int)
 
-print (X)
+## Dumping the vectorized data. Shape: (num_samples, num_features). Each column represents a feature.
+with open('X.pkl', 'wb') as f:
+	pickle.dump(X, f)
+
+## Reading the data from the dump
+with open('X.pkl', 'rb') as f:
+	X = pickle.load(f)
+
+print (X, X.shape)
 
