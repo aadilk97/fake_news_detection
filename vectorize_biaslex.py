@@ -1,130 +1,73 @@
-import nltk
 import os
-import json
-import time
-import sys
-import requests
+import pickle
+import numpy as np
 
 from os.path import join, isfile
-from goose3 import Goose, Configuration
-from nltk import word_tokenize
-from time import sleep
 
 
-def compute_overlap(claim, article):
-	sentences = nltk.sent_tokenize(article)
-
-	for sent in sentences:
-		sent = sent.replace("\"", "")
-		tk_claim = word_tokenize(claim)
-		tk_sent = word_tokenize(sent)
-
-		c1 = c2 = 0
-		for t in tk_claim:
-			if t in tk_sent:
-				c1 += 1
-
-		bigrm1 = list(nltk.bigrams(tk_claim))
-		bigrm2 = list(nltk.bigrams(tk_sent))
-
-		for b in bigrm1:
-			if b in bigrm2:
-				c2 += 1
-
-		score = c1 + c2
-		if score >= 0.4 * (len(tk_claim) + len(bigrm1)):
-			return score, True
-
-		
-	return 0, False
-	print ("----XXX-----")
-
-path = '/Users/aadil/fake_news_detection/Snopes'
-dump_path = '/Users/aadil/fake_news_detection/data'
-
-
+path = '/Users/aadil/fake_news_detection/data2'
+lex_path = '/Users/aadil/fake_news_detection/public-lexicons/bias_related_lexicons'
 
 filepaths = [join(path, f) for f in os.listdir(path) if isfile(join(path, f))]
 filepaths.sort()
 
-start_time = time.time()
+lexpaths = [join(lex_path, f) for f in os.listdir(lex_path) if isfile(join(lex_path, f))]
+lexpaths.sort()
 
-c = Configuration()
-g = Goose(config=c)
+lexicons = [[]]
 
+## Generating a wordlist for each stylistic feature and storing in a 2-D list.
+for i in range(len(lexpaths)):
+	with open(lexpaths[i], 'r', encoding='latin-1') as f:
+		word_list = []
+		for word in f:
+			word_list.append(word.rstrip())
 
-## Do not loop more than 30 items at a time
-for i in range(1000, 1100):
-	## Closing the old goose instance and starting a new one
-	if i % 20 == 0:
-		print ('At step .... ', i)
-		g.close()
-		print ('Restarting goose')
-		g = Goose()
-
-	with open(filepaths[i]) as f:
-		urls = []
-		data = json.load(f)
-		name = data['Claim_ID']
-		query = data['Claim']
-
-		
-
-		for item in data['Google Results'][0]['results']:
-			if 'snopes' not in item['link'] and 'pdf' not in item['link']:
-				urls.append(item['link'])
-
-		if data['Credibility'] == 'false':
-			cred = "0\n"
-
-		else:
-			print ("True claim = ", name)
-			cred = "1\n"
-
-			
-	print ('At claim .... ', name)
-
-	articles = []
-	count = 0
-	checkpoint = time.time()
-	timeout = 5
-
-	for url in urls:
-		try:
-			## Extracting the articles using goose and extracting the text body and checking overlap with the claim
-			article = g.extract(url=url)							
-			article = article.cleaned_text + cred
-			score, res = compute_overlap(query, article)
-
-			## Checking the limit of maximum 5 articles per claim
-			if count > 5:
-				break
-
-			## Checking if the overlap is greater than a threshold value
-			if res == True:
-				print ('Dumping ....', name)
-				f = open(os.path.join(dump_path, (name + str(count) +  '.txt')), 'w')
-				f.write(article)
-				f.close()
-
-				count += 1
-				checkpoint = time.time()
-
-			# Check for timeout
-			if time.time() > checkpoint + timeout and cred == '0\n':
-				print ('Timed-out ....', name)
-				break
-
-		## Checking for connection error of requests
-		except requests.exceptions.ConnectionError as e:
-			print ('Some error at file =', name)
-			continue
-
-		except:
-			continue
+		lexicons.insert(i, word_list)
 
 
-	print ()
+## Vecotorzing the data using the 2-D list by counting frequency of each feature type.
+X = [[]]
+y = []
+## Ranges to length-1 as the last doc is the test doc(000_test.txt).
+for i in range(0, len(filepaths)-1):
+	if i % 50 == 0:
+		print ('At step ...', i)
 
-print ('Total time = ', ((time.time() - start_time) / 60), 'mins')
-	
+	with open(filepaths[i], 'r') as f:
+		text = f.read()
+		text = text.replace("\"", "")
+		text = text.strip()
+		tokens = text.split()
+
+		## An empty vector vec for each doc. Updating the vector with frequency of each feature type and then normalizing it.
+		vec = []
+		for lex in lexicons:
+			c = 0
+			for word in lex:
+				c += tokens.count(word)
+			vec.append(c / len(tokens))
+
+		## Inserting the updated vector vec in the array X used for training. Updating the label list y as well.
+		X.insert(i, vec)
+		y.append(text[-1].rstrip())
+
+## Converting the python lists to numpy arrays.
+X = np.array(X[0: len(y)])
+y = np.array(y, dtype=int)
+
+## Dumping the vectorized data. Shape: (num_samples, num_features). Each column represents a feature.
+with open('X_train_1000.pkl', 'wb') as f:
+	pickle.dump(X, f
+with open('y_train_1000.pkl', 'wb') as f:
+	pickle.dump(y, f)
+
+## Reading the data from the dump
+with open('X_train_1000.pkl', 'rb') as f:
+	X_train = pickle.load(f)
+
+with open('y_train_1000.pkl', 'rb') as f:
+	y_train = pickle.load(f)
+
+print (X_train.shape, y_train.shape)
+
