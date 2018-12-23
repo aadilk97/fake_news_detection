@@ -2,10 +2,13 @@ import nltk
 import os
 import json
 import time
+import sys
+import requests
 
 from os.path import join, isfile
 from goose3 import Goose, Configuration
 from nltk import word_tokenize
+from time import sleep
 
 
 def compute_overlap(claim, article):
@@ -37,7 +40,7 @@ def compute_overlap(claim, article):
 	print ("----XXX-----")
 
 path = '/Users/aadil/fake_news_detection/Snopes'
-dump_path = '/Users/aadil/fake_news_detection/data2'
+dump_path = '/Users/aadil/fake_news_detection/data'
 
 
 
@@ -46,10 +49,18 @@ filepaths.sort()
 
 start_time = time.time()
 
+c = Configuration()
+g = Goose(config=c)
+
+
 ## Do not loop more than 30 items at a time
-for i in range(630, 632):
-	if i % 10 == 0:
+for i in range(1000, 1100):
+	## Closing the old goose instance and starting a new one
+	if i % 20 == 0:
 		print ('At step .... ', i)
+		g.close()
+		print ('Restarting goose')
+		g = Goose()
 
 	with open(filepaths[i]) as f:
 		urls = []
@@ -57,7 +68,7 @@ for i in range(630, 632):
 		name = data['Claim_ID']
 		query = data['Claim']
 
-		print ('At claim .... ', name)
+		
 
 		for item in data['Google Results'][0]['results']:
 			if 'snopes' not in item['link'] and 'pdf' not in item['link']:
@@ -70,10 +81,8 @@ for i in range(630, 632):
 			print ("True claim = ", name)
 			cred = "1\n"
 
-	
-	c = Configuration()
-	c.http_timeout = 10
-	g = Goose(config=c)
+			
+	print ('At claim .... ', name)
 
 	articles = []
 	count = 0
@@ -106,8 +115,14 @@ for i in range(630, 632):
 				print ('Timed-out ....', name)
 				break
 
+		## Checking for connection error of requests
+		except requests.exceptions.ConnectionError as e:
+			print ('Some error at file =', name)
+			continue
+
 		except:
 			continue
+
 
 	print ()
 
