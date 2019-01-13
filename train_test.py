@@ -24,47 +24,17 @@ claims = os.listdir(path)
 stop_words = set(stopwords.words('english'))
 
 
-def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None,
-                        n_jobs=None, train_sizes=np.linspace(.1, 1.0, 5)):
-
-    plt.figure()
-    plt.title(title)
-    if ylim is not None:
-        plt.ylim(*ylim)
-    plt.xlabel("Training examples")
-    plt.ylabel("Score")
-    train_sizes, train_scores, test_scores = learning_curve(
-        estimator, X, y, cv=cv, n_jobs=n_jobs, train_sizes=train_sizes)
-    train_scores_mean = np.mean(train_scores, axis=1)
-    train_scores_std = np.std(train_scores, axis=1)
-    test_scores_mean = np.mean(test_scores, axis=1)
-    test_scores_std = np.std(test_scores, axis=1)
-    plt.grid()
-
-    plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
-                     train_scores_mean + train_scores_std, alpha=0.1,
-                     color="r")
-    plt.fill_between(train_sizes, test_scores_mean - test_scores_std,
-                     test_scores_mean + test_scores_std, alpha=0.1, color="g")
-    plt.plot(train_sizes, train_scores_mean, 'o-', color="r",
-             label="Training score")
-    plt.plot(train_sizes, test_scores_mean, 'o-', color="g",
-             label="Cross-validation score")
-
-    plt.legend(loc="best")
-    return plt
-
-
 def extract_snippets(claim, article):
     text = ''
     sentences = nltk.sent_tokenize(article)
+    sentences = [sent for sent in sentences if len(word_tokenize(sent)) > 3]
 
     i = 0
     snippets = []
     overlap_score = []
-    while i < (len(sentences)-4):
+    while i < (len(sentences)-3):
         snippet = ''
-        for sent in sentences[i:i+4]:
+        for sent in sentences[i:i+3]:
             snippet += sent
 
         tk_claim = word_tokenize(claim)
@@ -87,7 +57,7 @@ def extract_snippets(claim, article):
         if score >= 0.2 * (len(tk_claim) + len(bigrm1)):
             snippets.append(snippet)
             overlap_score.append(score)
-            i += 4
+            i += 3
 
         else:
             i += 1
@@ -104,6 +74,7 @@ vectorizer = pickle.load(open('vectorizer.pkl', 'rb'))
 
 y = np.array(y)
 (X, y) = shuffle(X, y)
+# X = X.toarray()
 # X = X[:, :8]
 # X = X[:, :7]
 # X = X[:, [0,1,2,3,4,5,6]]
@@ -113,7 +84,7 @@ y = np.array(y)
 scaler = MinMaxScaler()
 # scaler.fit_transform(X)
 
-clf = LogisticRegression(class_weight='balanced', penalty='l1', max_iter=100000, random_state=0, C=100)
+clf = LogisticRegression(class_weight='balanced', penalty='l2', max_iter=100000, random_state=0, C=0.1)
 clf.fit(X, y)
 train_pred = clf.predict(X)
 
@@ -182,10 +153,13 @@ for i in range(len(claims)):
 		text = f.read()
 		snippets, overlap_score = extract_snippets(claim, text)
 
+		per_snippet_score = []
 		if len(snippets) > 0:
 			vec = vectorizer.transform(snippets)
-			per_claim_stance = clf.predict_proba(vec)
-			per_article_stance.append(np.argmax(np.sum(per_claim_stance, axis=0)))
+			# vec = vec.toarray()
+			per_snippet_score.append(clf.predict_proba(vec))
+			per_snippet_score = np.array(per_snippet_score).reshape(len(snippets), 2)
+			per_article_stance.append(np.argmax(np.sum(per_snippet_score, axis=0)))
 
 	if len(per_article_stance) > 0:
 		per_article_stance = np.array(per_article_stance)
@@ -205,6 +179,9 @@ print ('Pred = ', pred)
 print ('Label = ', y_test)
 
 tn, fp, fn, tp = confusion_matrix(y_test, pred).ravel()
+acc = accuracy_score(y_test, pred)
+
+print ('Acc = ', acc)
 print ('True acc = ', (tp / np.bincount(y_test)[1]))
 print ('False acc =', (tn / np.bincount(y_test)[0]))
 
