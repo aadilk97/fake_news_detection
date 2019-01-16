@@ -17,6 +17,8 @@ from sklearn.model_selection import learning_curve
 from sklearn.svm import SVC
 
 from vectorize_biaslex import find_vector
+from gensim.models.doc2vec import Doc2Vec
+
 
 
 path = '/Users/aadil/fake_news_detection/test'
@@ -70,19 +72,16 @@ with open('X_train.pkl', 'rb') as f:
 with open('y_train.pkl', 'rb') as f:
 	y = pickle.load(f)
 
+# vectorizer_unigrams = pickle.load(open('vectorizer_unigram.pkl', 'rb'))
+# vectorizer_bigrams = pickle.load(open('vectorizer_bigram.pkl', 'rb'))
+
 vectorizer = pickle.load(open('vectorizer.pkl', 'rb'))
+# model = Doc2Vec.load('Doc2Vec/d2v.model')
 
 y = np.array(y)
 (X, y) = shuffle(X, y)
-# X = X.toarray()
-# X = X[:, :8]
-# X = X[:, :7]
-# X = X[:, [0,1,2,3,4,5,6]]
 
 
-
-scaler = MinMaxScaler()
-# scaler.fit_transform(X)
 
 clf = LogisticRegression(class_weight='balanced', penalty='l2', max_iter=100000, random_state=0, C=0.1)
 clf.fit(X, y)
@@ -156,9 +155,12 @@ for i in range(len(claims)):
 		per_snippet_score = []
 		if len(snippets) > 0:
 			vec = vectorizer.transform(snippets)
-			# vec = vec.toarray()
 			per_snippet_score.append(clf.predict_proba(vec))
 			per_snippet_score = np.array(per_snippet_score).reshape(len(snippets), 2)
+			overlap_score = np.array(overlap_score)
+			for i in range(len(snippets)):
+				per_snippet_score[i] = per_snippet_score[i] * overlap_score[i]
+
 			per_article_stance.append(np.argmax(np.sum(per_snippet_score, axis=0)))
 
 	if len(per_article_stance) > 0:
