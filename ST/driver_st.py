@@ -62,7 +62,8 @@ def extract_snippets(claim, article):
 
     return snippets, overlap_score
 
-claim = 'A dying child was made an honorary fireman by the Phoenix Fire Department.'
+print ('Enter the claim to check')
+claim = input()
 articles = extract_articles(claim)
 
 clf = pickle.load(open('stance_classifier.pkl', 'rb'))
@@ -103,9 +104,3 @@ if len(per_article_stance) > 0:
 
 else:
 	print ('No articles found')
-
-
-
-
-
-
