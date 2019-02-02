@@ -34,7 +34,7 @@ def extract_snippets(claim, article):
     while i < (len(sentences)-3):
         snippet = ''
         for sent in sentences[i:i+3]:
-            snippet += sent
+            snippet += sent 
 
         tk_claim = word_tokenize(claim)
         tk_snippet = word_tokenize(snippet)
