@@ -25,8 +25,8 @@ def extract_snippets(claim, article):
     sentences = nltk.sent_tokenize(article)
     sentences = [sent for sent in sentences if len(word_tokenize(sent)) > 3]
 
-    for i in range(len(sentences)):
- 	    sentences[i] = ' '.join([w.lower() for w in word_tokenize(sentences[i])])
+    # for i in range(len(sentences)):
+    #     sentences[i] = ' '.join([w.lower() for w in word_tokenize(sentences[i])])
 
     i = 0
     snippets = []
@@ -126,24 +126,24 @@ for i in range(len(claims)):
 			# for i in range(len(snippets)):
 			# 	per_snippet_score[i] = per_snippet_score[i] * overlap_score[i]
 
-			if len(snippets) > 3:
-				per_snippet_score = -np.sort(-per_snippet_score, axis=0)
-				f_st = np.average(per_snippet_score[0:3], axis=0)
+			# if len(snippets) > 3:
+			# 	per_snippet_score = -np.sort(-per_snippet_score, axis=0)
+			# 	per_snippet_score = per_snippet_score[0:3]
 
 
-			f_st = np.average(per_snippet_score, axis=0)
 			f_l = np.array(find_vector(snippets))
-			f_l = np.sum(f_l, axis=0)
+			F = np.concatenate((per_snippet_score, f_l), axis=1)
+			for row in F:
+				X.append(list(row))
 
-			F = np.concatenate((f_st, f_l))
-			X.append(list(F))
+			for k in range(len(snippets)):
+				y.append(label)
 
-			y.append(label)
 
 X, y = np.array(X), np.array(y)
 X, y = shuffle(X, y)
 
-clf_st_lg = LogisticRegression(class_weight='balanced', penalty='l2', C=0.0001)
+clf_st_lg = LogisticRegression(class_weight='balanced', penalty='l2', C=10000)
 clf_st_lg.fit(X, y)
 
 print ('Dumping classifier ...')
