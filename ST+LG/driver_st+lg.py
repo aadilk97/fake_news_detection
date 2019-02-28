@@ -32,7 +32,7 @@ def extract_articles(claim):
 	print ('Extracting the articles ...')
 	g = Goose()
 	articles = []
-	for url in search(claim, stop=30):
+	for url in search(claim, stop=10):
 		if 'snopes' not in url:
 			try:
 				article = g.extract(url=url)
@@ -49,6 +49,7 @@ def extract_snippets(claim, article):
 
 	i = 0
 	snippets = []
+	snippets_cs = []
 	overlap_score = []
 	while i < (len(sentences)-3):
 		snippet = ''
@@ -73,15 +74,19 @@ def extract_snippets(claim, article):
 
 		score = c1 + c2
 		if score >= 0.2 * (len(tk_claim) + len(bigrm1)):
+			snippet = ' '.join([w for w in word_tokenize(snippet)])
+			snippets_cs.append(snippet)
+
 			snippet = ' '.join([w.lower() for w in word_tokenize(snippet)])
 			snippets.append(snippet)
+
 			overlap_score.append(score)
 			i += 3
 
 		else:
 			i += 1
 
-	return snippets, overlap_score
+	return snippets, snippets_cs, overlap_score
 
 def find_vector(corpus):
 	X = []
@@ -98,6 +103,14 @@ def find_vector(corpus):
 
 	return X
 
+def find_subjectvity(text):
+	tokens = word_tokenize(text)
+	c = 0
+	for word in lexicons[7]:
+		c += tokens.count(word)
+
+	return (c / len(tokens)) 
+
 print ('Enter the claim to check')
 claim = input()
 articles = extract_articles(claim)
@@ -111,17 +124,26 @@ print ('Computing the crediblity ...')
 
 
 per_article_pred = []
+evidences = [[]]
 for i in range(len(articles)):
-	snippets, overlap_score = extract_snippets(claim, articles[i])
+	snippets, snippets_cs, overlap_score = extract_snippets(claim, articles[i])
 
 	per_snippet_score = []
+	per_snippet_stance = []
 	if len(snippets) > 0:
 		vec = vectorizer.transform(snippets).toarray()
+		per_snippet_stance.append(clf_st.predict(vec))
 		per_snippet_score.append(clf_st.predict_proba(vec))
 		per_snippet_score = np.array(per_snippet_score).reshape(len(snippets), 2)
+		per_snippet_stance = np.array(per_snippet_stance).reshape(len(snippets), 1)
 		overlap_score = np.array(overlap_score)
-		
 
+
+		# claims = claims[(-overlap_score).argsort()[:claims.shape[0]]]
+		# per_snippet_stance = per_snippet_stance[(-overlap_score).argsort()[:per_snippet_stance.shape[0]]]
+
+		evidences.append((snippets_cs[np.argmax(overlap_score)], per_snippet_stance[np.argmax(overlap_score)]))
+		
 		f_l = np.array(find_vector(snippets))
 		F = np.concatenate((per_snippet_score, f_l), axis=1)
 		article_prediction = clf_st_lg.predict_proba(F)
@@ -135,8 +157,23 @@ if len(per_article_pred) > 0:
 
 	## Calculating the sum of probabilities of each article for overall prediction
 	pred = np.argmax(np.average(per_article_pred, axis=0))
-	print (np.array(per_article_pred))
 	print ('Prediction = ', pred)
-	
+	print ('\n' * 5)
+
+evidences = evidences[1:len(evidences)]
+subjectivity_score = np.array([find_subjectvity(evidence[0]) for evidence in evidences])
+order = (-subjectivity_score).argsort()[:subjectivity_score.shape[0]]
+
+if pred == 0:
+	# evidences = evidences[(-subjectivity_score).argsort()[:subjectivity_score.shape[0]]]
+	evidences = [evidences[i] for i in order]
+
+## Finding the evidence
+for i in range(len(evidences)):
+	if evidences[i][1] == pred:
+		print (evidences[i][0])
+		print ('\n' * 3)
+
+
 
 
