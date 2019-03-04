@@ -34,7 +34,7 @@ def extract_articles(claim):
 	articles = []
 	for url in search(claim, stop=10):
 		if 'snopes' not in url:
-			try:
+			try: 
 				article = g.extract(url=url)
 				articles.append(article.cleaned_text)
 			except:
