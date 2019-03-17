@@ -87,6 +87,7 @@ def extract_snippets(claim, article):
 
         score = c1 + c2
         if score >= 0.2 * (len(tk_claim) + len(bigrm1)):
+            snippet = ' '.join([w.lower() for w in word_tokenize(snippet)])
             snippets.append(snippet)
             overlap_score.append(score)
             i += 3
@@ -101,6 +102,15 @@ vectorizer = pickle.load(open('vectorizer.pkl', 'rb'))
 clf_st = pickle.load(open('stance_classifier.pkl', 'rb'))
 clf_st_lg = pickle.load(open('classifier_st-lg.pkl', 'rb'))
 
+## Loading dumped data and training a classifier
+# X = pickle.load(open('X.pkl', 'rb'))
+# y  = pickle.load(open('y.pkl', 'rb'))
+# clf_st_lg = LogisticRegression(class_weight='balanced', penalty='l1', C=10000)
+# clf_st_lg.fit(X, y)
+
+# with open('classifier_st-lg.pkl', 'wb') as f:
+# 	pickle.dump(clf_st_lg, f)
+
 
 ## Checking the accuracy per claim as per test_data
 y_test = []
@@ -109,6 +119,8 @@ for i in range(len(claims)):
 	if i % 10 == 0:
 		print ('At step i = ', i)
 
+	if 'soapbox' in claims[i]:
+		continue
 
 	c_path = os.path.join(path, claims[i])
 	claim_path = os.path.join(c_path, 'claim.txt')
@@ -123,48 +135,54 @@ for i in range(len(claims)):
 		a_paths = [join(c_path, f) for f in os.listdir(c_path) if isfile(join(c_path, f))]
 
 	per_article_pred = []
-	for i in range(len(a_paths)-3):
-		f = open(a_paths[i], 'r')
-		text = f.read()
-		snippets, overlap_score = extract_snippets(claim, text)
+	all_snippets = []
+	if len(a_paths) > 0:
+		for i in range(len(a_paths)-3):
+			f = open(a_paths[i], 'r')
+			text = f.read()
+			snippets, overlap_score = extract_snippets(claim, text)
+			for s in snippets:
+				all_snippets.append(s)
 
+			per_snippet_score = []
+			if len(snippets) > 0:
+				vec = vectorizer.transform(snippets).toarray()
+				per_snippet_score.append(clf_st.predict_proba(vec))
+				per_snippet_score = np.array(per_snippet_score).reshape(len(snippets), 2)
+				overlap_score = np.array(overlap_score)
+				# for i in range(len(snippets)):
+				# 	per_snippet_score[i] = per_snippet_score[i] * overlap_score[i]
 
-		per_snippet_score = []
-		if len(snippets) > 0:
-			vec = vectorizer.transform(snippets).toarray()
-			per_snippet_score.append(clf_st.predict_proba(vec))
-			per_snippet_score = np.array(per_snippet_score).reshape(len(snippets), 2)
-			overlap_score = np.array(overlap_score)
-			# for i in range(len(snippets)):
-			# 	per_snippet_score[i] = per_snippet_score[i] * overlap_score[i]
+				# if len(snippets) > 3:
+				# 	per_snippet_score = -np.sort(-per_snippet_score, axis=0)
+				# 	per_snippet_score = per_snippet_score[0:3]
 
-			if len(snippets) > 3:
-				per_snippet_score = -np.sort(-per_snippet_score, axis=0)
-				f_st = np.average(per_snippet_score[0:3], axis=0)
+				f_l = np.array(find_vector(snippets))
+				F = np.concatenate((per_snippet_score, f_l), axis=1)
+				article_prediction = `.predict_proba(F)
+				per_article_pred.append((np.average(article_prediction, axis=0)))
 
+		if len(per_article_pred) > 0:
+			## Giving the most common class as the overll prediction
+			# per_article_pred = np.argmax(per_article_pred, axis=1) 
+			# count = np.bincount(per_article_pred)
+			# pred.append(np.argmax(count))
 
-			f_st = np.average(per_snippet_score, axis=0)
-			f_l = np.array(find_vector(snippets))
-			f_l = np.sum(f_l, axis=0)
+			## Calculating the sum of probabilities of each article for overall prediction
+			pred.append(np.argmax(np.average(per_article_pred, axis=0)))
 
-			F = np.concatenate((f_st, f_l))
-			article_prediction = clf_st_lg.predict_proba(F.reshape(1, -1))
-			per_article_pred.append(article_prediction)
+			label_path = os.path.join(c_path, 'label.txt')
+			f = open(label_path, 'r')
+			y_test.append(int(f.read()))
+			f.close()
 
-	if len(per_article_pred) > 0:
-		# count = np.bincount(per_article_pred)
-		# pred.append(np.argmax(count))
-		pred.append(np.argmax(np.average(per_article_pred, axis=0)))
-
-		label_path = os.path.join(c_path, 'label.txt')
-		f = open(label_path, 'r')
-		y_test.append(int(f.read()))
-		f.close()
-
-		# if y_test[-1] != pred[-1]:
-		# 	print (label_path, 'Actual = ', y_test[-1], 'Pred = ', pred[-1])
-		# 	print (per_article_pred)
-
+			# if y_test[-1] != pred[-1]:
+			# 	print (label_path, 'Actual = ', y_test[-1], 'Pred = ', pred[-1])
+			# 	print (np.array(per_article_pred))
+				# for s in all_snippets:
+				# 	print (s)
+				# 	print ('---xx----')
+				# 	print ()
 
 y_test = np.array(y_test)
 pred = np.array(pred)
