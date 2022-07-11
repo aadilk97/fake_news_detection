@@ -1,0 +1,10 @@
+django
+gunicorn
+django-heroku
+nltk
+google
+numpy
+sklearn
+goose3
+whitenoise
+
