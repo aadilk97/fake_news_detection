@@ -20,3 +20,7 @@ The output contains the verdict of the claim given by the system and the top evi
 1. UNESCO declares Indian national anthem as the best.
 2. A dying child was made an honorary fireman by the Phoenix Fire Department.
 3. Pop Rocks and Coca-Cola make your stomach explode.
+
+# Output
+![alt text](https://github.com/aadilk97/fake_news_detection/blob/master/images/claim_output.png?raw=true)
+
